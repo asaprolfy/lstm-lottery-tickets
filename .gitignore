@@ -1,6 +1,9 @@
 # macos finder pointer
 .DS_Store
 
+# vector cache
+*/.vector_cache
+
 # resources dir
 /resources
 
