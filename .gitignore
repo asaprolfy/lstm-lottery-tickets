@@ -6,6 +6,7 @@
 
 # resources dir
 /resources
+/data
 
 # intellij
 .idea
