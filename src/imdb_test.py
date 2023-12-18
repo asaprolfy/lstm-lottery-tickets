@@ -9,7 +9,7 @@ import torch.nn as nn
 from datasets.nlp.imdb import import_dataset
 
 from train.train import train
-from evaluate.sentiment.test import evaluate
+from evaluate.test import evaluate
 from models.sentiment_lstm_bidi_layers import BRNN_LSTM
 from pruning.misc_pruning_methods import apply_threshold_prune_all_layers as prune_all
 from pruning.misc_pruning_methods import apply_l1un_prune_all_layers as prune_all_l1un
@@ -54,22 +54,30 @@ def main(device, run_configs, batch_size=32, hidden_dim=32):
         print('Non pruned run:')
         evaluate(model, test_dl, device)
 
-        acc = {}
+        acc_before_retraining = {}
+        acc_after_retraining = {}
         for p_rate in pruning_rates:
             model_p = copy.deepcopy(model)
+            model_p.to(device)
             prune_all_l1un(model_p, p_rate)
-            print(f"{p_rate} prune test run: ")
-            acc[p_rate] = evaluate(model_p, test_dl, device)
+            print(f"{p_rate} prune test run pre-retrain: ")
+            acc_before_retraining[p_rate] = evaluate(model_p, test_dl, device)
+            criterion_p = nn.CrossEntropyLoss()
+            optimizer_p = torch.optim.Adam(model_p.parameters(), lr=run['lr'] * 10)
+            train(model_p, criterion_p, optimizer_p, train_dl, device, num_epochs=2)
+            print(f"{p_rate} prune test run post-retrain: ")
+            acc_after_retraining[p_rate] = evaluate(model_p, test_dl, device)
+            del model_p
 
         tmp = {"INFO": {
             "learning_rate": run["lr"],
             "num_layers": run["layers"],
             "num_epochs": run["epochs"]
         },
-            "RESULTS": acc
+            "BEFORE_RETRAIN": acc_before_retraining,
+            "AFTER_RETRAIN": acc_after_retraining
         }
         res.append(tmp)
-        del model_p
 
     return res
 
@@ -77,7 +85,7 @@ def main(device, run_configs, batch_size=32, hidden_dim=32):
 if __name__ == '__main__':
     # filename = "../resources/datasets/sentiment/financialdata.csv"
 
-    out_filename = "./out/imdb-results-4.json"
+    out_filename = "./out/lr-varied-tests-with-posttrain.json"
 
     # layers = [4, 8]
     # learning_rates = [1e-5, 5e-5, 1e-4, 5e-4, 1e-3, 1e-2]
@@ -86,14 +94,29 @@ if __name__ == '__main__':
 
     runs = [
         {
-            "layers": 10,
+            "layers": 3,
             "lr": 1e-5,
-            "epochs": 60
+            "epochs": 15
         },
+        # {
+        #     "layers": 4,
+        #     "lr": 2e-5,
+        #     "epochs": 25
+        # },
         {
-            "layers": 14,
-            "lr": 15e-6,
-            "epochs": 60
+            "layers": 3,
+            "lr": 5e-5,
+            "epochs": 15
+        },
+        # {
+        #     "layers": 4,
+        #     "lr": 1e-4,
+        #     "epochs": 25
+        # },
+        {
+            "layers": 3,
+            "lr": 1e-4,
+            "epochs": 15
         }
     ]
 

@@ -22,7 +22,7 @@ class BRNN_LSTM(nn.Module):
         self.embedding = nn.Embedding.from_pretrained(emb)
 
         # The RNN layer takes in the embedding size and the hidden vector size.
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=self.num_layers, batch_first=True, bidirectional=True)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim, num_layers=self.num_layers, batch_first=True, bidirectional=True,)
 
         # We use dropout before the final layer to improve with regularization.
         self.dropout = nn.Dropout(dropout)
@@ -31,7 +31,7 @@ class BRNN_LSTM(nn.Module):
         # outputs a 3x1 vector of the class scores.
         self.fc = nn.Linear(hidden_dim * self.num_directions, 3)
 
-        self.init_weights()
+        # self.init_weights()
 
     def forward(self, x, hidden):
         """

@@ -7,7 +7,7 @@ import torch.nn as nn
 # import torch.nn.utils.prune as prune
 
 from datasets.sentiment.financial_data import import_dataset
-from train.sentiment.train import train
+from train.train import train
 from evaluate.test import evaluate
 
 # from models.sentiment_lstm import Sentiment_LSTM

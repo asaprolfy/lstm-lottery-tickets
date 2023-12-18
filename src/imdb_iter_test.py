@@ -12,11 +12,9 @@ from datasets.nlp.imdb import import_dataset
 from train.train import train
 from evaluate.test import evaluate
 from models.sentiment_lstm_bidi_layers import BRNN_LSTM
-from pruning.misc_pruning_methods import apply_threshold_prune_all_layers as prune_all
-from pruning.misc_pruning_methods import apply_l1un_prune_all_layers as prune_all_l1un
 
-from pruning.layerwise_weight_prune import create_mask, apply_mask, create_apply_mask
-from pruning.reset_prune import reset_model, reset_non_mask, reset_orig_wgt_tensors
+from pruning.layerwise_weight_prune import create_mask_dict, apply_mask_dict, create_apply_mask_dict
+from pruning.reset_prune import reset_orig_wgt_tensors_dict
 
 
 def main(device, config, n_iter=10, batch_size=32, hidden_dim=32):
@@ -31,17 +29,18 @@ def main(device, config, n_iter=10, batch_size=32, hidden_dim=32):
     model = BRNN_LSTM(batch_size, word_index_lex, num_layers=config['layers'], hidden_dim=hidden_dim)
     model.to(device)
     original_state_dict = copy.deepcopy(model.state_dict())
-    print(f"original_state_dict")
-    print(original_state_dict)
+    print(f"original_state_dict nonzero num")
+    # print(original_state_dict)
+    original_nonzero_count = 0
 
     torch.save(model,
                f"./saves/brnn_lstm/imdb/{config['lr']}_{config['layers']}_{config['epochs']}/init.pth.tar")
 
-    criterion = nn.CrossEntropyLoss()
-    optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'])
-
     for i in range(0, n_iter):
         print(f"begin iteration:  {i}")
+
+        criterion = nn.CrossEntropyLoss()
+        optimizer = torch.optim.Adam(model.parameters(), lr=config['lr'])
 
         sparsity_rates = []
 
@@ -54,27 +53,35 @@ def main(device, config, n_iter=10, batch_size=32, hidden_dim=32):
                        f"./saves/brnn_lstm/imdb/{config['lr']}_{config['layers']}_{config['epochs']}/i_{i}.pth.tar")
 
             # mask, orig_wgt_tensors = create_mask(model, prune_rate=(float(i) / 10.0))
-            mask, orig_wgt_tensors = create_apply_mask(model)
+            # mask, orig_wgt_tensors, unpruned = create_mask_dict(model)
+            mask, orig_wgt_tensors, unpruned = create_apply_mask_dict(model)
 
-            reset_orig_wgt_tensors(model, mask, orig_wgt_tensors, original_state_dict)
-            apply_mask(model, mask)
+            # reset_orig_wgt_tensors_dict(model, mask, orig_wgt_tensors, original_state_dict)
+            # apply_mask_dict(model, mask)
 
-            print(f"mask:  ")
-            print(mask)
+            total = 0
+            pruned = 0
 
-            np_arr = np.array(mask).flatten()
+            for layer in mask:
+                for param in mask[layer]:
+                    print(layer)
+                    print(param)
+                    print(mask[str(layer)][str(param)])
+                    # total += count_items(mask[k])
+                    # unpruned += np.count_nonzero(mask[k])
+                    c, z = count_items(mask[str(layer)][str(param)])
+                    total += c
+                    pruned += z
 
-            n_nonpruned_wgts = np.count_nonzero(np_arr)
-            n_total_wgts = len(np_arr)
-            n_pruned_wgts = n_total_wgts - n_nonpruned_wgts
-            # sparsity_rate = (n_total_wgts - n_pruned_wgts) / n_total_wgts
+            if original_nonzero_count == 0:
+                original_nonzero_count = total
 
-            if n_total_wgts != 0:
-                sparsity_rate = 1 - ((n_total_wgts - n_pruned_wgts) / n_total_wgts)
-                sparsity_rates.append(sparsity_rate)
-                print(f"sparsity_rate:  {sparsity_rate}")
+            sparsity = pruned / total
 
-            print(f"after prune iter:  {i}  ||  num_pruned:  {n_pruned_wgts}  ||  num_total_wgts:  {n_total_wgts}")
+            sparsity_rates.append(sparsity)
+
+            print(f"after prune iter:  {i}  ||  num_pruned:  {pruned}  ||  num_total_wgts:  {total}")
+            print(f"sparsity:  {sparsity}")
 
         res.append(
             {
@@ -90,6 +97,34 @@ def main(device, config, n_iter=10, batch_size=32, hidden_dim=32):
     return res
 
 
+def count_items(array):
+    """Counts the number of items in an array.
+
+    Args:
+      array: The array to count the items in.
+
+    Returns:
+      The number of items in the array.
+    """
+    count = 0
+    zeros = 0
+
+    for v in array:
+        if type(v) is array:
+            c, z = count_items(v)
+            count += c
+            zeros += z
+        elif type(v) is np.ndarray:
+            c, z = count_items(v)
+            count += c
+            zeros += z
+        else:
+            count += 1
+            if v == 0:
+                zeros += 1
+    return count, zeros
+
+
 if __name__ == '__main__':
     filename = "./out/iter-results-0.json"
 
@@ -97,8 +132,8 @@ if __name__ == '__main__':
     num_iterations = 10
     conf = {
         "lr": 1e-4,
-        "layers": 4,
-        "epochs": 15
+        "layers": 2,
+        "epochs": 10
     }
 
     results = main(dev, conf, num_iterations)

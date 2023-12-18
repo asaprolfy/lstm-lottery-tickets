@@ -57,3 +57,28 @@ def reset_orig_wgt_tensors(model: nn.Module, mask, orig_wgt_tensors, original_st
     for name, param in model.named_parameters():
         if 'bias' in name:
             param.data = original_state_dict[name]
+
+def reset_orig_wgt_tensors_simple(model: nn.Module, mask, orig_wgt_tensors, original_state_dict):
+    i = 0
+    for name, param in model.named_parameters():
+        if 'weight' in name:
+            wgt_dev = param.device
+            param.data = torch.from_numpy(mask[name] * orig_wgt_tensors[name]).to(wgt_dev)
+            i += 1
+        if 'bias' in name:
+            param.data = original_state_dict[name]
+
+
+def reset_orig_wgt_tensors_dict(model: nn.Module, mask, orig_wgt_tensors, original_state_dict):
+    for layer_name, layer in model.named_children():
+        if layer_name in wgt_mods:
+            for param_name, param in layer.named_parameters():
+                if 'weight' in param_name:
+                    wgt_dev = param.device
+                    param.data = (torch.from_numpy(
+                        mask[str(layer_name)][str(param_name)] * orig_wgt_tensors[str(layer_name)][str(param_name)])
+                                  .to(wgt_dev))
+
+    for param_name, param in model.named_parameters():
+        if 'bias' in param_name:
+            param.data = original_state_dict[param_name]

@@ -7,7 +7,7 @@ import torchtext.vocab as vocab
 
 class Sentiment_LSTM(nn.Module):
     def __init__(self, batch_size, word_to_index_lex,
-                 hidden_dim=32, dropout=0.1, embedding_dim=100):
+                 hidden_dim=32, dropout=0.1, embedding_dim=100, num_layers=1):
         super(Sentiment_LSTM, self).__init__()
         self.batch_size = batch_size
         self.word_to_index_lex = word_to_index_lex
@@ -17,6 +17,7 @@ class Sentiment_LSTM(nn.Module):
         self.embedding_dim = embedding_dim
         emb = self.init_embeddings()
         self.embedding = nn.Embedding.from_pretrained(emb)
+        self.num_layers = num_layers
 
         self.lstm = nn.LSTM(embedding_dim, hidden_dim)
         self.dropout = nn.Dropout(dropout)
@@ -37,11 +38,12 @@ class Sentiment_LSTM(nn.Module):
         out = self.fc(out)
 
         # We extract the scores for the final hidden state since it is the one that matters.
-        out = out[:, -1]
+        out = out[:, -1, :]
         return out, hidden
 
     def init_hidden(self):
-        return torch.zeros(1, self.batch_size, 32), torch.zeros(1, self.batch_size, 32)
+        return (torch.zeros(self.num_layers, self.batch_size, self.hidden_dim),
+                torch.zeros(self.num_layers, self.batch_size, self.hidden_dim))
 
     def count_parameters(self):
         return sum(param.numel() for param in self.parameters() if self.requires_grad_())
