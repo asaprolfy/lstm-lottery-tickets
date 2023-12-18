@@ -8,6 +8,8 @@
 /resources
 /data
 /src/data
+/src/out
+/src/saves
 
 # intellij
 .idea
