@@ -18,6 +18,10 @@ class Basic_LSTM(nn.Module):
         self.fc = nn.Linear(hidden_dim, out_features)
         self.softmax = nn.Softmax()
 
+        self.layer_names = [
+
+        ]
+
     def forward(self, x, hidden):
         # self.hidden = self.init_hidden(x.size(-1))
         

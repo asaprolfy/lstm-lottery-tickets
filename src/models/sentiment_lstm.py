@@ -18,7 +18,7 @@ class Sentiment_LSTM(nn.Module):
         emb = self.init_embeddings()
         self.embedding = nn.Embedding.from_pretrained(emb)
 
-        self.lstm = nn.LSTM(embedding_dim, hidden_dim, batch_first=True)
+        self.lstm = nn.LSTM(embedding_dim, hidden_dim)
         self.dropout = nn.Dropout(dropout)
         self.fc = nn.Linear(hidden_dim, 3)
 
